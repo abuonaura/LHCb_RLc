@@ -188,7 +188,14 @@ def applyLcMcut(mass,M_min=2230,M_max=2330):
     massok=1
   return massok
 
-def CreateCuttedDataTuple(fname, tname, new_fname,t_bdt, apply_cuts=1, muPIDcut=0.6, LcMrange=[2230,2330],BDTcut=-1.7):
+def applypProbNNcut(t,n_evt,cut=0):
+  t.GetEntry(n_evt)
+  passcut = 0
+  if (t.p_MC15TuneV1_ProbNNp - t.p_MC15TuneV1_ProbNNk)>0:
+    passcut=1
+  return passcut
+
+def ApplyCuts2Tuple(fname, tname, new_fname, apply_cuts=1, muPIDcut=0.6, LcMrange=[2230,2330], pProbNNcut=0):
   if os.path.isfile(new_fname):
             print('File already created')
   else:
@@ -209,15 +216,36 @@ def CreateCuttedDataTuple(fname, tname, new_fname,t_bdt, apply_cuts=1, muPIDcut=
         t.GetEntry(i)
         if apply_cuts==1:
           if applytrigger(t,i) and applymuProbNNcut(t,i,muPIDcut):
-            if applyLcMcut(t.Lc_M,Mmin,Mmax) and CheckBDTpass(t_bdt,i,BDTcut):
+            if applyLcMcut(t.Lc_M,Mmin,Mmax) and applypProbNNcut(t,i,pProbNNcut):
               newtree.Fill()
             
       newtree.Write()
       newfile.Close()
       f.Close()
     
-      print('Finished Cloning')
-                                        
+      print('Finished Cloning tree with cuts')
 
+def ApplyBDTcut2Tuple(fname, tname, new_fname,t_bdt, BDTcut=-1.7):
+  if os.path.isfile(new_fname):
+    print('File already created')
+  else:
+    f = r.TFile(fname,"READ")
+    t = f.Get(tname)
+    if f:
+      print('Started Cloning')
+      
+    newfile = r.TFile(new_fname,"recreate")
+    newtree= t.CloneTree(0)
+    newtree.SetName("DecayTree")
+
+    for i in range(t.GetEntries()):
+      t.GetEntry(i)
+      if CheckBDTpass(t_bdt, n_evt, BDTcut):
+        newtree.Fill()
+
+    newtree.Write()
+    newfile.Close()
+    f.Close()
+    print ('Created tuple with only evts passing BDTcut')
 
 

@@ -175,10 +175,12 @@ def applytrigger(t,n_evt):
                 trigger = 1
     return trigger
 
-def applymuProbNNcut(t, n_evt,cut=0.6):
+def applymuProbNNcut(t, n_evt,cut=0.6,ismc=0):
   t.GetEntry(n_evt)
   muProbNN = 0
-  if (t.mu_MC15TuneFLAT4dV1_ProbNNmu>cut):
+  if ismc==0 and (t.mu_MC15TuneFLAT4dV1_ProbNNmu>cut):
+    muProbNN = 1
+  if ismc==1 and (t.mu_ProbNNmu_corr>cut):
     muProbNN = 1
   return muProbNN
 
@@ -188,16 +190,28 @@ def applyLcMcut(mass,M_min=2230,M_max=2330):
     massok=1
   return massok
 
-def applypProbNNcut(t,n_evt,cut=0):
+def applyPIDMCcuts(t,n_evt,ismc=1):
+  pidpass=0
+  if ismc==0:
+    pidpass=1
+  if ismc==1:
+    t.GetEntry(n_evt)
+    if (t.pi_pidk_corr<2 and t.K_pidk_corr>4 and t.p_pidp_corr>0):
+      pidpass=1
+  return pidpass
+
+def applypProbNNcut(t,n_evt,cut=0,ismc=0):
   t.GetEntry(n_evt)
   passcut = 0
-  if (t.p_MC15TuneV1_ProbNNp - t.p_MC15TuneV1_ProbNNk)>0:
+  if ismc==1:
+    passcut=1
+  if ismc==0 and (t.p_MC15TuneV1_ProbNNp - t.p_MC15TuneV1_ProbNNk)>0:
     passcut=1
   return passcut
 
-def ApplyCuts2Tuple(fname, tname, new_fname, apply_cuts=1, muPIDcut=0.6, LcMrange=[2230,2330], pProbNNcut=0):
+def ApplyCuts2Tuple(fname, tname, new_fname, apply_cuts=1, muPIDcut=0.6, LcMrange=[2230,2330], pProbNNcut=0, ismc=0, isfakemu=False):
   if os.path.isfile(new_fname):
-            print('File already created')
+    print('File already created')
   else:
       f = r.TFile(fname,"READ")
       t = f.Get(tname)
@@ -215,9 +229,12 @@ def ApplyCuts2Tuple(fname, tname, new_fname, apply_cuts=1, muPIDcut=0.6, LcMrang
       for i in range(t.GetEntries()):
         t.GetEntry(i)
         if apply_cuts==1:
-          if applytrigger(t,i) and applymuProbNNcut(t,i,muPIDcut):
-            if applyLcMcut(t.Lc_M,Mmin,Mmax) and applypProbNNcut(t,i,pProbNNcut):
-              newtree.Fill()
+          if applytrigger(t,i) and applyLcMcut(t.Lc_M,Mmin,Mmax):
+            if applyPIDMCcuts(t,i,ismc) and applypProbNNcut(t,i,pProbNNcut,ismc):
+              if isfakemu==False and applymuProbNNcut(t,i,muPIDcut,ismc):
+                newtree.Fill()
+              if isfakemu==True:
+                newtree.Fill()
             
       newtree.Write()
       newfile.Close()

@@ -14,15 +14,25 @@ from root_pandas import read_root
 import os,sys,getopt,time
 import os.path
 
+from utils import *
+
 opts, args = getopt.getopt(sys.argv[1:],"",['sf=','st=','df=','dt=','FakeMu','bdtf='])
 
-signal_fname = "~/Work/LHCb/Analysis/RLc/OutTuples/Lb_taunu_new2.pid.root"
+dir = '~/Work/LHCb/Analysis/RLc/OutTuples/'
+outdir = '~/Work/LHCb/Analysis/RLc/MyTuples/'
+
+signal_fname = "Lb_taunu_new2.pid.root"
 signal_tname = "DecayTree"
 
-data_fname = "~/Work/LHCb/Analysis/RLc/OutTuples/Lb_Data_Feb18_NewProd.root"
+cutsig_fname = outdir + signal_fname
+
+data_fname = "Lb_Data_Feb18_NewProd.root"
 data_tname = "tupleout/DecayTree"
 
-bdt_fname = "~/Work/LHCb/Analysis/RLc/MyTuples/BDT_data.root"
+cutdata_fname = outdir + signal_fname
+cutdata_tname = "DecayTree"
+
+bdt_fname = outdir + "BDT_data.root"
 
 
 fakemu = False
@@ -47,8 +57,11 @@ for o, a in opts:
     if o in ("--FakeMu"):
         fakemu = True
 
+print('Applying cuts')
+ApplyCuts2Tuple(dir+signal_fname, signal_tname,cutsig_fname,1,0.6,[2230,2330],0,1,fakemu)
+ApplyCuts2Tuple(dir+data_fname, data_tname,cutdata_fname,fakemu)
 
-df_signal = read_root(signal_fname,signal_tname,
+df_signal = read_root(cutsig_fname,signal_tname,
                       columns=['Lc_M','Lc_FDCHI2_OWNPV','Lc_ENDVERTEX_CHI2','pi_PT','p_PT','K_PT',
                                'pi_MINIPCHI2','p_MINIPCHI2','K_MINIPCHI2','Lc_IPCHI2_OWNPV',
                                'Lc_BKGCAT','Lb_BKGCAT','p_ProbNNp_corr','pi_ProbNNpi_corr',
@@ -57,7 +70,7 @@ df_signal = read_root(signal_fname,signal_tname,
                                'Lc_Hlt1TrackMVADecision_TOS','Lc_Hlt1TwoTrackMVADecision_TOS',
                                'Lb_Hlt2XcMuXForTauB2XcMuDecision_TOS'])
 
-df_bkg = read_root(data_fname, data_tname,
+df_bkg = read_root(cutdata_fname, cutdata_tname,
                   columns=['Lc_M','Lc_FDCHI2_OWNPV','Lc_ENDVERTEX_CHI2','pi_PT','p_PT','K_PT',
                            'pi_MINIPCHI2','p_MINIPCHI2','K_MINIPCHI2','Lc_IPCHI2_OWNPV',
                            'p_MC15TuneV1_ProbNNp','pi_MC15TuneV1_ProbNNpi','K_MC15TuneV1_ProbNNk',
@@ -75,6 +88,7 @@ mLc_b = df_bkg['Lc_M']
 df_signal =df_signal.loc[((df_signal['Lc_M']>2260)&(df_signal['Lc_M']<2310))&(df_signal['Lc_BKGCAT']<30)].dropna()
 df_bkg = df_bkg.loc[(df_bkg['Lc_M']<2260)|(df_bkg['Lc_M']>2310)].dropna()
 
+'''
 #Apply cut on mu_ProbNNmu
 if fakemu==False:
     df_signal = df_signal.loc[df_signal['mu_ProbNNmu_corr']>0.6]
@@ -89,8 +103,10 @@ df_bkg = df_bkg.loc[(df_bkg['Lb_L0Global_TIS']==1)|(df_bkg['Lc_L0HadronDecision_
 df_bkg = df_bkg.loc[(df_bkg['Lc_Hlt1TrackMVADecision_TOS']==1)|(df_bkg['Lc_Hlt1TwoTrackMVADecision_TOS']==1)].dropna()
 df_bkg = df_bkg.loc[(df_bkg['Lb_Hlt2XcMuXForTauB2XcMuDecision_TOS']==1)].dropna()
 
+
 #Cut on PID as in stripping line
 df_signal =df_signal.loc[((df_signal['pi_pidk_corr']<2)&(df_signal['K_pidk_corr']>4.))&(df_signal['p_pidp_corr']>0.)].dropna()
+'''
 
 mLc_s = df_signal['Lc_M']
 mLc_b = df_bkg['Lc_M']
@@ -279,7 +295,7 @@ fig6 = plt.figure()
 compare_train_test(gbm_tuned_4, X_train, y_train, X_test, y_test)
 plt.show(block = False)
 
-
+'''
 #Write the classifier to a TTree
 from root_numpy import array2root
 
@@ -292,6 +308,7 @@ df_data = read_root(data_fname,data_tname,
 
 df_data =df_data.rename(columns={"p_MC15TuneV1_ProbNNp": "p_ProbNNp", "pi_MC15TuneV1_ProbNNpi": "pi_ProbNNpi","K_MC15TuneV1_ProbNNk" : 'K_ProbNNk'})
 
+
 y_predicted = gbm_tuned_4.decision_function(df_data[BDTvars])
 y_predicted.dtype = [('y', np.float64)]
 nevt = df_data.index.values
@@ -303,7 +320,7 @@ else:
 
 
 
-'''
+
 data =df_data
 data=data.assign(BDTMC=y_predicted)
 

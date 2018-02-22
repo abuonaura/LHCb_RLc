@@ -14,7 +14,7 @@ from root_pandas import read_root
 import os,sys,getopt,time
 import os.path
 
-opts, args = getopt.getopt(sys.argv[1:],['sf=','st=','df=','dt=','FakeMu'])
+opts, args = getopt.getopt(sys.argv[1:],"e",['sf=','st=','df=','dt=','FakeMu'])
 
 signal_fname = "~/Work/LHCb/Analysis/RLc/OutTuples/Lb_taunu_new2.pid.root"
 signal_tname = "DecayTree"
@@ -25,16 +25,19 @@ data_tname = "tupleout/DecayTree"
 fakemu = False
 
 for o, a in opts:
-    if o in ("-sf",):
+    print o
+    if o in ("-e",):
+        print 'Hello!'
+    if o in ("--sf",):
         if a.lower() == "none": signal_fname = None
-        else: fname = a
-    if o in ("-st",):
+        else: signal_fname = a
+    if o in ("--st",):
         if a.lower() == "none": signal_tname = None
         else: signal_tname = a
-    if o in ("-df",):
+    if o in ("--df",):
         if a.lower() == "none": data_fname = None
         else: data_fname = a
-    if o in ("-dt",):
+    if o in ("--dt",):
         if a.lower() == "none": data_tname = None
         else: data_tname = a
     if o in ("--FakeMu"):

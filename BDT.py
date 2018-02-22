@@ -14,7 +14,7 @@ from root_pandas import read_root
 import os,sys,getopt,time
 import os.path
 
-opts, args = getopt.getopt(sys.argv[1:],"e",['sf=','st=','df=','dt=','FakeMu'])
+opts, args = getopt.getopt(sys.argv[1:],"",['sf=','st=','df=','dt=','FakeMu','bdtf='])
 
 signal_fname = "~/Work/LHCb/Analysis/RLc/OutTuples/Lb_taunu_new2.pid.root"
 signal_tname = "DecayTree"
@@ -22,12 +22,13 @@ signal_tname = "DecayTree"
 data_fname = "~/Work/LHCb/Analysis/RLc/OutTuples/Lb_Data_Feb18_NewProd.root"
 data_tname = "tupleout/DecayTree"
 
+bdt_fname = "~/Work/LHCb/Analysis/RLc/MyTuples/BDT_data.root"
+
+
 fakemu = False
 
 for o, a in opts:
     print o
-    if o in ("-e",):
-        print 'Hello!'
     if o in ("--sf",):
         if a.lower() == "none": signal_fname = None
         else: signal_fname = a
@@ -40,6 +41,9 @@ for o, a in opts:
     if o in ("--dt",):
         if a.lower() == "none": data_tname = None
         else: data_tname = a
+    if o in ("--bdtf",):
+        if a.lower() == "none": bdt_fname = None
+        else: bdt_fname = a
     if o in ("--FakeMu"):
         fakemu = True
 
@@ -279,41 +283,23 @@ plt.show(block = False)
 #Write the classifier to a TTree
 from root_numpy import array2root
 
-'''
-y_predicted = gbm_tuned_4.decision_function(X)
-#y_predicted.dtype = [('y', np.float64)]
+df_data = read_root(data_fname,data_tname,
+                    columns=['Lc_M','Lc_FDCHI2_OWNPV','Lc_ENDVERTEX_CHI2','pi_PT','p_PT','K_PT',
+                             'pi_MINIPCHI2','p_MINIPCHI2','K_MINIPCHI2','Lc_IPCHI2_OWNPV',
+                             'p_MC15TuneV1_ProbNNp','pi_MC15TuneV1_ProbNNpi','K_MC15TuneV1_ProbNNk',
+                             'Lb_L0Global_TIS','Lc_L0HadronDecision_TOS','Lc_Hlt1TrackMVADecision_TOS',
+                             'Lc_Hlt1TwoTrackMVADecision_TOS','Lb_Hlt2XcMuXForTauB2XcMuDecision_TOS'])
 
-#array2root(y_predicted, "test-prediction.root", "BDToutput")
+df_data =df_data.rename(columns={"p_MC15TuneV1_ProbNNp": "p_ProbNNp", "pi_MC15TuneV1_ProbNNpi": "pi_ProbNNpi","K_MC15TuneV1_ProbNNk" : 'K_ProbNNk'})
 
-#Put together evts from signal and bkg tuple with info ALSO on Lc mass
-Xm = np.concatenate((df_signal['Lc_M'], df_bkg['Lc_M']))
-#add y
-data = pd.DataFrame(Xm,columns=['Lc_M'])
-data =data.assign(BDT=y_predicted)
-
-'''
-#df_data = read_root("~/Work/LHCb/Analysis/RLc/MyTuples/Lb_Data_sWeights.root","DecayTreeWCuts",
-
-def createBDTroot(filename):
-    df_data = read_root("~/Work/LHCb/Analysis/RLc/MyTuples/Lb_Data_Feb18_NewProd_sWeights.root","DecayTreeWCuts",
-                        columns=['Lc_M','Lc_FDCHI2_OWNPV','Lc_ENDVERTEX_CHI2','pi_PT','p_PT','K_PT',
-                                 'pi_MINIPCHI2','p_MINIPCHI2','K_MINIPCHI2','Lc_IPCHI2_OWNPV',
-                                 'p_MC15TuneV1_ProbNNp','pi_MC15TuneV1_ProbNNpi','K_MC15TuneV1_ProbNNk',
-                                 'Lb_L0Global_TIS','Lc_L0HadronDecision_TOS','Lc_Hlt1TrackMVADecision_TOS','Lc_Hlt1TwoTrackMVADecision_TOS','Lb_Hlt2XcMuXForTauB2XcMuDecision_TOS'])
-    #df_data = df_data.loc[(df_data['Lc_M']>2230)&(df_data['Lc_M']<2330)].dropna()
-    #df_data = df_data.loc[(df_data['Lb_L0Global_TIS']==1)|(df_data['Lc_L0HadronDecision_TOS']==1)].dropna()
-    #df_data = df_data.loc[(df_data['Lc_Hlt1TrackMVADecision_TOS']==1)|(df_data['Lc_Hlt1TwoTrackMVADecision_TOS']==1)].dropna()
-    #df_data = df_data.loc[(df_data['Lb_Hlt2XcMuXForTauB2XcMuDecision_TOS']==1)].dropna()
-    df_data =df_data.rename(columns={"p_MC15TuneV1_ProbNNp": "p_ProbNNp", "pi_MC15TuneV1_ProbNNpi": "pi_ProbNNpi","K_MC15TuneV1_ProbNNk" : 'K_ProbNNk'})
-
-    y_predicted = gbm_tuned_4.decision_function(df_data[BDTvars])
-    y_predicted.dtype = [('y', np.float64)]
-    nevt = df_data.index.values
-    nevt.dtype = [('nevt', np.int64)]
-    if os.path.isfile(filename):
-        print('File already created! Delete file or change name!')
-    else:
-        array2root(y_predicted, filename, "BDToutput")
+y_predicted = gbm_tuned_4.decision_function(df_data[BDTvars])
+y_predicted.dtype = [('y', np.float64)]
+nevt = df_data.index.values
+nevt.dtype = [('nevt', np.int64)]
+if os.path.isfile(bdt_fname):
+    print('File already created! Delete file or change name!')
+else:
+    array2root(y_predicted, bdt_fname, "BDToutput")
 
 
 
